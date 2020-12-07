@@ -26,11 +26,16 @@ cmd.effort = [];
 tic;
 
 %% --------- Inverse Kinematics ----
-goal = [0.1, 0.3, 0];
-initialJointAngs = fbk.position;
-waypoints = kin.getInverseKinematics('XYZ', goal, 'InitialPositions',...
-    initialJointAngs);
-disp(waypoints)
+% Inverse Kinematics
+goals = [0, 0.3, 0.0;
+        0, 0.5, 0.2;
+        0.1, 0.6, 0.3];
+
+    for i = 1:(length(goals(:,1)))
+        initialJointAngs = fbk.position;
+        waypoints = kin.getInverseKinematics( 'XYZ', goals,...
+    'IntialPositions', initialJointAngs );
+    end
 
 % send position/velocity command for 10 seconds
 while toc < 1
