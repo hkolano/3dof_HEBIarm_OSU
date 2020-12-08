@@ -25,6 +25,44 @@ cmd.velocity = zeros(1,numModules);
 cmd.effort = [];
 tic;
 
+
+kin = HebiKinematics();
+         trajGen = HebiTrajectoryGenerator();
+    
+         % Move between a set of waypoints using blocking calls
+         % (Assumes a group has already been created)
+         numWaypoints = 5;
+         timeToMove = 3; % seconds
+    
+         positions = rand(numWaypoints, group.getNumModules);
+         disp(positions)
+         time = [0 timeToMove];
+    
+         % Execute trajectory open-loop in position and velocity
+         cmd = CommandStruct();
+    
+         for i = 2:numWaypoints
+            start = positions(i-1, :);
+            finish = positions(i, :);
+            trajectory = trajGen.newJointMove(...
+                  [start; finish], ...
+                  'time', time);
+    
+            fbk = group.getNextFeedback();
+            t0 = fbk.time;
+            t = 0;
+    
+            while t < trajectory.getDuration()
+               fbk = group.getNextFeedback();
+               t = fbk.time - t0;
+               [cmd.position, cmd.velocity, ~] = trajectory.getState(t);
+               group.send(cmd);
+            end
+         end
+
+
+
+
 %% --------- Inverse Kinematics ----
 goal = [0.1, 0.3, 0];
 initialJointAngs = fbk.position;
