@@ -26,12 +26,13 @@ cmd.effort = [];
 tic;
 
 %% ------ Main ------
-% targets = [0.09, 0.0, -0.04;
-%            0.09, -0.17, -0.04;
-%            0.09, 0.17, -0.04;
-%            0.09, 0, -0.04];
+% targets = [0.22, 0.0, -0.10;
+%            0.22, -0.43, -0.10;
+%            0.22, 0.43, -0.10;
+%            0.22, 0, -0.10];
 targets = [0, 0, 1;
-           .2, .2, 0];
+           0, -1, 0;
+           1, 0, 0];
 positions = getWaypoints(targets, fbk, kin);
 disp(positions)
 moveArm(positions, group, cmd, trajGen)
@@ -52,11 +53,12 @@ moveArm(positions, group, cmd, trajGen)
 
 %% ---------- Helper Functions ----------
 function positions = getWaypoints(targets, fbk, kin)
-    [rows, cols] = size(targets);
-    positions = zeros(rows+1, cols);
-    positions(1,:) = fbk.position;
-    disp(positions)
+    [rows, cols] = size(targets)
+    positions = zeros(rows, cols)
+    positions(1,:) = kin.getInverseKinematics('XYZ', targets(1,:),...
+        'InitialPositions', fbk.position)
     for i = 2:rows
+        disp(i)
         positions(i,:) = kin.getInverseKinematics( 'XYZ', targets(i,:),...
             'InitialPositions', positions(i,:));
     end
@@ -66,15 +68,15 @@ end
 
 function [] = moveArm(positions, group, cmd, trajGen)
 [rows, ~] = size(positions);
-timeToMove = 20;
+timeToMove = 5;
 time = [0 timeToMove];
-% trajGen.setSpeedFactor(1);
+trajGen.setSpeedFactor(0.4);
 for i = 2:rows
     start = positions(i-1, :);
     finish = positions(i, :);
     trajectory = trajGen.newJointMove(...
-        [start; finish],'time', time);
-    
+        [start; finish],'Time',time);
+    HebiUtils.plotTrajectory(trajectory);
     fbk = group.getNextFeedback();
     t0 = fbk.time;
     t = 0;
@@ -87,6 +89,25 @@ for i = 2:rows
     end
 end
 end
+
+function [] = moveArm2(positions, group, cmd, trajGen)
+trajectory = trajGen.newJointMove(positions);
+
+% Visualize points along the trajectory
+% HebiUtils.plotTrajectory(trajectory);
+
+% Execute trajectory open-loop in position and velocity
+t0 = tic();
+t = toc(t0);
+while t < trajectory.getDuration()
+    t = toc(t0);
+    fbk = group.getNextFeedback();  % limits loop rate
+    [cmd.position, cmd.velocity, ~] = trajectory.getState(t);
+    group.send(cmd);
+end
+end
+
+
 
 function [] = startup()
     % startup sets up libraries and should be started once on startup.
